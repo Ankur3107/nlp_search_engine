@@ -114,13 +114,15 @@ def df_to_json_v2(df):
                 'match_score': score,
                 'popularity_score': popularitiy,
                 'slotName': type,
-                'value': name})
+                'value': name,
+                'isConflicting':'no'})
   if number_out_result==0:
     return []
   return results[0:number_out_result]
 
-def df_to_json(df, k=5):
-  df = df.sort_values('popularity', ascending=False)
+def df_to_json(df, k=5, sort_by_popularity=True):
+  if sort_by_popularity:
+    df = df.sort_values('popularity', ascending=False)
   names = df.name.tolist()
   scores = df.ranking_score.tolist()
   types = df.type.tolist()
@@ -141,12 +143,62 @@ def df_to_json(df, k=5):
                 'match_score': score,
                 'popularity_score': popularitiy,
                 'slotName': type,
-                'value': name})
+                'value': name,
+                'isConflicting':'no'})
 
   return results[0:k]
 
 
-def rank_based_result():
-  rank = 70
-  popularity_score=30
-  pass
+def df_to_json_v3(df):
+  #print(df)
+  names = df.name.tolist()
+  scores = df.ranking_score.tolist()
+  types = df.type.tolist()
+  popularities = df.popularity.tolist()
+  #print("names :",names)
+  results = []
+  number_out_result = 5
+  flag = False
+  for i in range(len(names)):
+    type = types[i]
+    if type=='person':
+      type='person_name'
+    elif type=='movie':
+      type='movie_name'
+
+    name = names[i]
+    score = scores[i]
+    popularitiy = popularities[i]
+
+    if not flag and i==0 and score>=0.90:
+      number_out_result = 1
+      flag = True
+    elif not flag and i==0 and score>=0.80:
+      number_out_result = 2
+      flag = True
+    elif not flag and i==0 and score>=0.60:
+      flag = True
+      number_out_result = 3
+    elif not flag and i==0 and score>=0.45:
+      flag = True
+      number_out_result = 5
+    elif not flag and i==0 and score<0.45:
+      flag = True
+      number_out_result = 0
+
+    results.append({'entity': type,
+                'match_score': score,
+                'popularity_score': popularitiy,
+                'slotName': type,
+                'value': name,
+                'isConflicting':'no'})
+  if number_out_result==0 or number_out_result>2:
+    result_indexes = df[df.type=='person'].index.tolist()[0:3]+df[df.type=='movie'].index.tolist()[0:3]
+    final_results = []
+    for i in result_indexes:
+      i_result = results[i]
+      i_result['isConflicting'] = 'yes'
+      final_results.append(i_result)
+    return final_results
+  else:
+    return results[0:number_out_result]
